@@ -18,7 +18,7 @@ WORKDIR /
 
 COPY --from=build /cl-inter /cl-inter
 
-EXPOSE 8081
+EXPOSE 8080
 
 CMD ["/cl-inter"]
 
