@@ -1,0 +1,40 @@
+{
+    "enabled": true,
+    "logLevel": "DEBUG",
+    "subscribed": [
+        {
+            "app": "{{app}}",
+            "enabled": true,
+            "threads": 1,
+            "coreApp": {
+                "coreExecutorFunc": "SQCExecutor",
+                "processingTimeout": 15,
+                "serviceParams": {
+                    "runCommand": "{{runCommand}}"
+                }
+            },
+            "queueDetails": {
+                "service": "{{aws-sqs/rmq}}",
+                "access": "default-sqs",
+                "queueParams": {
+                    "queueType": "standard",
+                    "url": "{{queueUrl}}"
+                }
+            },
+            "fileHandlerDetails": {
+                "service": "{{aws-s3}}",
+                "access": "default-s3",
+                "params": {
+                    "bucketName": "{{bucketName}}",
+                    "localPath": "{{localPath}}",
+                    "outputFileName": "{{outputFileName}}"
+                }
+            },
+            "webhook": {
+                "enabled": true,
+                "access": "api-access",
+                "api": "{{api}}"
+            }
+        }
+    ]
+}

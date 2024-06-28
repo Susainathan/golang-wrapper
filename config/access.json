@@ -1,0 +1,16 @@
+{
+    "api-access": {
+        "accessName": "{{accessName}}",
+        "accessKey": "{{accessKey}}"
+    },
+    "default-sqs": {
+        "region": "{{region}}",
+        "accessKey": "{{accessKey}}",
+        "secretKey": "{{secretKey}}"
+    },
+    "default-s3": {
+        "region": "{{region}}",
+        "accessKey": "{{accessKey}}",
+        "secretKey": "{{secretKey}}"
+    }
+}

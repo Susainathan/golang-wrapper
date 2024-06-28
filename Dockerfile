@@ -1,26 +1,9 @@
-FROM golang:1.21 AS build
+FROM golang:1.21
 
-WORKDIR /app
+WORKDIR /tnq/apps/xml-central/xmlc-wrapper-go
 
-COPY go.mod go.sum ./
-RUN go mod download
+COPY . /tnq/apps/xml-central/xmlc-wrapper-go
 
-COPY . .
+EXPOSE 8081
 
-RUN CGO_ENABLED=0 GOOS=linux go build -o /cl-inter
-
-FROM build AS run-test
-RUN go test -v ./...
-
-FROM gcr.io/distroless/base-debian11 AS build-release-stage
-
-WORKDIR /
-
-COPY --from=build /cl-inter /cl-inter
-
-EXPOSE 8080
-
-CMD ["/cl-inter"]
-
-
-
+CMD ["./main"]
