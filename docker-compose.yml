@@ -1,14 +1,20 @@
-version: '3'
+version: '3.7'
 
 services:
-  cl-inter:
+  app:
+    container_name: xmlc-wrapper-go
+    hostname: xmlc-wrapper-go
     build:
       context: .
       dockerfile: Dockerfile
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "25m"
-        max-file: "200"
     ports:
-      - "8080:8080"
+      - "8081:8081"
+    volumes:
+      - /etc/ssl/certs:/etc/ssl/certs
+      - /usr/bin/docker:/usr/bin/docker
+      - /var/run/docker.sock:/var/run/docker.sock
+      - .:/tnq/apps/xml-central/xmlc-wrapper-go
+      - /tnq/data/xml-central:/tnq/data/xml-central
+    environment:
+      - GIN_MODE=debug
+    # restart: always
