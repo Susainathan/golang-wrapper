@@ -14,7 +14,6 @@ import (
 )
 
 func QueueWatcher(appConfig structs.SubscribedAppStruct, wg *sync.WaitGroup, initChan chan struct{}, semaphore chan struct{}) {
-
 	defer wg.Done()
 
 	sess, err := session.NewSession(&aws.Config{
@@ -23,54 +22,57 @@ func QueueWatcher(appConfig structs.SubscribedAppStruct, wg *sync.WaitGroup, ini
 	})
 
 	if err != nil {
-		message := fmt.Sprintf("Error creating session: %v", err)
-		helpers.LogMessage("ERROR", message)
+		helpers.LogMessage("ERROR", fmt.Sprintf("Error creating session: %v", err))
 		return
 	}
 
 	serviceClient := sqs.New(sess)
-
-	message := fmt.Sprintf("Initiating SQS to watch message for the app %v...", appConfig.App)
-	helpers.LogMessage("INFO", message)
+	helpers.LogMessage("INFO", fmt.Sprintf("Initiating SQS to watch messages for the app %v...", appConfig.App))
 
 	for {
 		select {
 		case <-initChan:
-			message := fmt.Sprintf("Stopping goroutine for the app %v", appConfig.App)
-			helpers.LogMessage("INFO", message)
+			helpers.LogMessage("INFO", fmt.Sprintf("Stopping goroutine for the app %v", appConfig.App))
 			return
 		case semaphore <- struct{}{}:
+			// Receive messages from SQS
 			result, err := serviceClient.ReceiveMessage(&sqs.ReceiveMessageInput{
 				QueueUrl:            aws.String(appConfig.QueueDetails.QueueParams.Url),
-				MaxNumberOfMessages: aws.Int64(1),
+				MaxNumberOfMessages: aws.Int64(1), // Fetch 1 message at a time
 				VisibilityTimeout:   aws.Int64(int64(appConfig.CoreApp.ProcessingTimeout) + 60),
 				WaitTimeSeconds:     aws.Int64(1),
 			})
 			if err != nil {
-				message := fmt.Sprintf("Error receiving message: %v", err)
-				helpers.LogMessage("ERROR", message)
+				helpers.LogMessage("ERROR", fmt.Sprintf("Error receiving message: %v", err))
+				<-semaphore // Release semaphore slot on error
+				continue
+			}
+
+			if len(result.Messages) == 0 {
 				<-semaphore
 				continue
 			}
 
-			message := map[string]string{
-				"projectToken":  "1c4b56ba-19cd-44c0-a7b2-43441314ef1c",
-				"filePath":      "/xml-central/sqc/1c4b56ba-19cd-44c0-a7b2-43441314ef1c",
-				"subFolderPath": "/f830a848-7d48-4e24-9d50-a37d199fa86c",
-				"fileName":      "/_tud.xml",
-			}
+			go func(msg *sqs.Message) {
+				defer func() {
+					<-semaphore
+				}()
 
-			if len(result.Messages) > 0 {
-				<-semaphore
-				continue
-			} else {
 				fucntionConf := executorConfig.Config
-				helpers.LogMessage("INFO", fmt.Sprintf("Received message for the app %v...", appConfig.App))
+				helpers.LogMessage("INFO", fmt.Sprintf("Processing message for app %v...", appConfig.App))
 
-				// go ProcesseMessage(*result.Messages[0], serviceClient, semaphore, appConfig, fucntionConf)
-				go ProcesseMessage(message, serviceClient, semaphore, appConfig, fucntionConf)
+				ProcesseMessage(msg, serviceClient, appConfig, fucntionConf)
 
-			}
+				_, err := serviceClient.DeleteMessage(&sqs.DeleteMessageInput{
+					QueueUrl:      aws.String(appConfig.QueueDetails.QueueParams.Url),
+					ReceiptHandle: msg.ReceiptHandle,
+				})
+				if err != nil {
+					helpers.LogMessage("ERROR", fmt.Sprintf("Error deleting message: %v", err))
+				} else {
+					helpers.LogMessage("INFO", fmt.Sprintf("Message processed and deleted for app %v", appConfig.App))
+				}
+			}(result.Messages[0])
 		}
 	}
 }
